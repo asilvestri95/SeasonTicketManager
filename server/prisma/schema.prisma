@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/season-tickets.db"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(MEMBER)
+  createdAt    DateTime @default(now())
+
+  ownedPlans      TicketPlan[]
+  gameAssignments GameAssignment[]
+  transfersFrom   Transfer[]       @relation("TransferFrom")
+  transfersTo     Transfer[]       @relation("TransferTo")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model TicketPlan {
+  id            String   @id @default(cuid())
+  ownerId       String
+  owner         User     @relation(fields: [ownerId], references: [id])
+  sport         String
+  team          String
+  season        String
+  section       String
+  row           String?
+  seats         String
+  totalGames    Int
+  purchasePrice Float?
+  createdAt     DateTime @default(now())
+
+  games Game[]
+}
+
+model Game {
+  id         String     @id @default(cuid())
+  planId     String
+  plan       TicketPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  gameDate   DateTime
+  opponent   String
+  homeAway   HomeAway   @default(HOME)
+  gameNumber Int
+  notes      String?
+
+  assignments GameAssignment[]
+}
+
+enum HomeAway {
+  HOME
+  AWAY
+}
+
+model GameAssignment {
+  id        String           @id @default(cuid())
+  gameId    String
+  game      Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  status    AssignmentStatus @default(ASSIGNED)
+  seatLabel String?
+  createdAt DateTime         @default(now())
+
+  transfer Transfer?
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  TRANSFERRED
+  AVAILABLE
+}
+
+model Transfer {
+  id            String         @id @default(cuid())
+  assignmentId  String         @unique
+  assignment    GameAssignment @relation(fields: [assignmentId], references: [id])
+  fromUserId    String
+  fromUser      User           @relation("TransferFrom", fields: [fromUserId], references: [id])
+  toUserId      String
+  toUser        User           @relation("TransferTo", fields: [toUserId], references: [id])
+  price         Float          @default(0)
+  paymentStatus PaymentStatus  @default(PENDING)
+  paymentMethod String?
+  note          String?
+  createdAt     DateTime       @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  WAIVED
+}
